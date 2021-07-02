@@ -25,91 +25,143 @@ author: J.M. Wilms
 contact: jowilms@gfz-potsdam.de
 description: A scipt containing tools to post-process the orbits, obtained from a forward simulation (and also recovery), from epos-oc.
  """
-
-
-def create_element_lines(ffp):
-	#input: Unformatted file that contains orbit elements needed to start each of the runs for GRACE-FO simulation
-	#output: Orbit elements that can be used as input for prepare_EPOSIN_4_orbit_integration.sh (located at
-	#/GFZ/project/f_grace/NGGM_SIM/SIM_FORWARD )
+def create_element_lines(ffp, splitstring):
+	#get titles
 	with open(ffp) as f:
-		lines = f.read().splitlines()
-		splits = [i for i in lines if i.startswith('TPM')]
-	print(splits)
-	n = 2  # group size
-	m = 1  # overlap size
-	splits_grouped = [splits[i:i + n] for i in range(0, len(splits)+1, n - m)]
+		LINES = f.readlines()
+		starts = []
+		for i,line in enumerate(LINES):
+			if line.startswith(splitstring):
+				starts.append(i)
+	ends=[]
 
+	for i in range(len(starts)):
+		ends.append(starts[i]+16)
+	blocks = list(zip(starts,ends))
 
-	# # print(lines)
-	# split = [i for i in lines if i.startswith('PP')]
-	for i in splits_grouped:
-		if len(i) > 1:
-			start = i[0]
-			end = i[1]
-			out = '%s_ELEMENT_lines.txt' % (start.strip())
-		with open(ffp) as infile, open(out, 'w') as outfile:
-			copy = False
-			titlewritten0 = False
-			titlewritten1 = False
-			firsttime6 = False
-			linesread = 0
-			outfile.write("\n")
+	format_float = ff.FortranRecordWriter('(E19.13)')
+	for block in blocks:
+		with open(ffp) as fp:
 
-			for line in infile:
-				if line.strip() == start.strip():
-					copy = True
-					continue
-				elif line.strip() == end.strip():
-					copy = False
-					continue
-				elif copy:
-					linesread += 1
+			for i, line in enumerate(fp):
 
-					if not titlewritten0:
+				if i in range(block[0],block[1]):
+					if i==block[0]:
+						outfile = open('%s_ELEMENTSnew.txt' %line.strip(),'w')
+						outfile.write('\n')
 						outfile.write('        --- Begin initial elements GRACE-C\n')
-						titlewritten0 = True
-					if line.startswith(
-							'ELEMENT') and titlewritten0:  # if line starts with ELEMENT and the first title has been written
-						val = list(filter(None, line.strip().split(' ')))[0:-3]
-						format_float = ff.FortranRecordWriter('(E19.13)')
-						val5 = str(format_float.write([np.float(val[5])]))
-						val6 = str(format_float.write([np.float(val[6])]))
 
-						val5 = val5.replace('E', 'e')
-						val6 = val6.replace('E', 'e')
+					if i>block[0]+1:
+						if line.startswith('Sat'):
+							outfile.write('       --- End initial elements GRACE-C\n')
+							outfile.write('\n')
+							outfile.write('        --- Begin initial elements GRACE-D\n')
+						if line.startswith('ELEMENT'):
+							val = line.strip().split()
+							val[5] = str(format_float.write([np.float(val[5])])).replace('E','e')
+							val[6] = str(format_float.write([np.float(val[6])])).replace('E', 'e')
+							if val[7] == '0201201': val[7] = '1804701'
+							if val[7] == '0201202': val[7] = '1804702'
+							str_new2 = ('%7.7s' '%4.3s' '%2.1i' '%2.1i' '%2.1i' '%20.19s' '%20.19s' '%8.7s') \
+									   % (val[0], val[1], int(val[2]), int(val[3]),
+										  int(val[4]), val[5], val[6], val[7])
+							outfile.write('%s\n' %str_new2)
+
+				if i==block[1]-1:
+					outfile.write('       --- End initial elements GRACE-D')
+					break
 
 
-						if val[7] == '0201201': val[7] = '1804701'
-						if val[7] == '0201202': val[7] = '1804702'
-						str_new2 = ('%7.7s' '%4.3s' '%2.1i' '%2.1i' '%2.1i' '%20.19s' '%20.19s' '%8.7s') % (val[0], val[1], int(val[2]), int(val[3]), int(val[4]), val5, val6, val[7])
 
 
-						# outfile.write("\n")
-						if int(val[2]) < 6:
-							outfile.write(str_new2)
-							outfile.write("\n")
 
-						if int(val[
-								   2]) == 6 and not titlewritten1:  # if element six has been reached and no 'end1' has been written yet:
-							if not firsttime6:
-								titlewritten1 = True
-								# titlewritten2 = True
-								outfile.write(str_new2)
-								outfile.write("\n")
-								outfile.write('        --- End initial elements GRACE-C\n\n')
-								outfile.write('        --- Begin initial elements GRACE-D\n')
 
-						if int(val[2]) == 6:
-							print(linesread)
-							if linesread > 7:
-								outfile.write(str_new2)
-								outfile.write("\n")
-
-			outfile.write('        --- End initial elements GRACE-D')
-			outfile.write("\n")
-			outfile.write('\n')
-		outfile.close()
-		infile.close()
+#
+#
+# def create_element_lines(ffp, splitstring):
+# 	#input: Unformatted file that contains orbit elements needed to start each of the runs for GRACE-FO simulation
+# 	#output: Orbit elements that can be used as input for prepare_EPOSIN_4_orbit_integration.sh (located at
+# 	#/GFZ/project/f_grace/NGGM_SIM/SIM_FORWARD )
+# 	with open(ffp) as f:
+# 		lines = f.read().splitlines()
+# 		splits = [i for i in lines if i.startswith(splitstring)]
+# 	print(splits)
+# 	n = 2  # group size
+# 	m = 1  # overlap size
+# 	splits_grouped = [splits[i:i + n] for i in range(0, len(splits), n - m)]
+# 	print(splits_grouped)
+#
+#
+# 	# # print(lines)
+# 	# split = [i for i in lines if i.startswith('PP')]
+# 	for i in splits_grouped:
+# 		if len(i) > 1:
+# 			start = i[0]
+# 			end = i[1]
+# 			out = '%s_ELEMENT_lines.txt' % (start.strip())
+# 		with open(ffp) as infile, open(out, 'w') as outfile:
+# 			copy = False
+# 			titlewritten0 = False
+# 			titlewritten1 = False
+# 			firsttime6 = False
+# 			linesread = 0
+# 			outfile.write("\n")
+#
+# 			for line in infile:
+# 				if line.strip() == start.strip():
+# 					copy = True
+# 					continue
+# 				elif line.strip() == end.strip():
+# 					copy = False
+# 					continue
+# 				elif copy:
+# 					linesread += 1
+#
+# 					if not titlewritten0:
+# 						outfile.write('        --- Begin initial elements GRACE-C\n')
+# 						titlewritten0 = True
+# 					if line.startswith(
+# 							'ELEMENT') and titlewritten0:  # if line starts with ELEMENT and the first title has been written
+# 						val = list(filter(None, line.strip().split(' ')))[0:-3]
+# 						format_float = ff.FortranRecordWriter('(E19.13)')
+# 						val5 = str(format_float.write([np.float(val[5])]))
+# 						val6 = str(format_float.write([np.float(val[6])]))
+#
+# 						val5 = val5.replace('E', 'e')
+# 						val6 = val6.replace('E', 'e')
+#
+#
+# 						if val[7] == '0201201': val[7] = '1804701'
+# 						if val[7] == '0201202': val[7] = '1804702'
+# 						str_new2 = ('%7.7s' '%4.3s' '%2.1i' '%2.1i' '%2.1i' '%20.19s' '%20.19s' '%8.7s') % (val[0], val[1], int(val[2]), int(val[3]), int(val[4]), val5, val6, val[7])
+#
+#
+# 						# outfile.write("\n")
+# 						if int(val[2]) < 6:
+# 							outfile.write(str_new2)
+# 							outfile.write("\n")
+#
+# 						if int(val[
+# 								   2]) == 6 and not titlewritten1:  # if element six has been reached and no 'end1' has been written yet:
+# 							if not firsttime6:
+# 								titlewritten1 = True
+# 								# titlewritten2 = True
+# 								outfile.write(str_new2)
+# 								outfile.write("\n")
+# 								outfile.write('        --- End initial elements GRACE-C\n\n')
+# 								outfile.write('        --- Begin initial elements GRACE-D\n')
+#
+# 						if int(val[2]) == 6:
+# 							print(linesread)
+# 							if linesread > 7:
+# 								outfile.write(str_new2)
+# 								outfile.write("\n")
+#
+# 			outfile.write('        --- End initial elements GRACE-D')
+# 			outfile.write("\n")
+# 			outfile.write('\n')
+# 		outfile.close()
+# 		infile.close()
 
 
 def files(path):
