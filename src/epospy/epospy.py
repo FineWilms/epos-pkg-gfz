@@ -2,9 +2,7 @@ import matplotlib as mpl
 # mpl.use('Agg')
 import matplotlib.pyplot as plt
 from shutil import copyfile
-from astropy.constants import G, M_earth, R_earth
 import fortranformat as ff
-# import matplotlib.pyplot as plt
 from itertools import zip_longest
 from scipy.signal import argrelextrema, argrelmin
 import os
@@ -12,8 +10,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime
-# import pyshtools as pysh
-# from pyshtools import constants
 from ast import literal_eval as make_tuple
 import pyshtools
 from scipy.io import loadmat
@@ -21,10 +17,7 @@ from pathlib import Path
 from scipy.special import lpmn
 from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
-from pyresample import geometry as prg
-from pyresample.kd_tree import resample_nearest
 import copy
-from pyresample import load_area
 import cartopy.feature as cfeature
 
 """
@@ -597,9 +590,6 @@ def ACCPAR2Newton_daily_mean(dirname, date_start, number_of_days, sat):
 		timestamps = []
 		for i in range(len(years)):
 			timestamps.append(datetime.datetime(years[i], months[i], days[i],hours[i],minutes[i], seconds[i]))
-
-		# timestamps = [datetime.datetime(,v[1],v[2],v[3],v[4],v[5]) for v in vals_t if v[3]]
-
 
 		a_y_list = [np.float(v[2]) for v in vals]
 
